@@ -1,0 +1,21 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/repos/JacKyDev/flowseer/actions/workflows/dummy.yml/runs",
+    "queryParameters": {
+      "page": {
+        "matches": "^(10|[1-9])$"
+      },
+      "per_page": {
+        "matches": "^(100|[1-99])$"
+      }
+    }
+  },
+  "response": {
+    "status": 401,
+    "bodyFileName": "workflows_unauthorized.json",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

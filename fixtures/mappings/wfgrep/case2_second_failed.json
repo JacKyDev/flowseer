@@ -1,0 +1,24 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/repos/JacKyDev/flowseer/actions/workflows/double-rate-limit.yml/runs",
+    "queryParameters": {
+      "page": {
+        "matches": "2"
+      },
+      "per_page": {
+        "matches": "2"
+      }
+    }
+  },
+  "response": {
+    "status": 403,
+    "headers": {
+      "x-ratelimit-remaining": "0",
+      "x-ratelimit-reset": "1722639052",
+      "x-ratelimit-limit": "5000"
+    },
+    "body": "Rate limit exceeded"
+  },
+  "priority": 1
+}
