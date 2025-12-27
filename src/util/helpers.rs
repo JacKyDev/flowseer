@@ -1,4 +1,6 @@
+use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
+use std::path::PathBuf;
 
 pub fn format_duration_from_str(start: Option<&str>, end: Option<&str>) -> String {
     match (start, end) {
@@ -59,6 +61,10 @@ pub fn wrap_at_spaces(input: &str, limit: usize) -> String {
     }
 
     result
+}
+
+pub fn resolve_home_dir() -> Result<PathBuf> {
+    dirs::home_dir().ok_or_else(|| anyhow!("Could not determine home directory"))
 }
 
 #[cfg(test)]

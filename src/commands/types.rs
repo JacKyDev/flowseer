@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use clap::ValueEnum;
+use serde::Deserialize;
 use serde::Serialize;
 use tabled::Tabled;
 
@@ -54,7 +55,8 @@ pub struct WorkflowTableRowData {
     pub start_date: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum OutputFormat {
     Table,
     Json,

@@ -6,37 +6,46 @@ use clap::value_parser;
 #[command(version, about = "Workflow Grep for Github workflow runs")]
 pub struct WfGrepArgs {
     #[arg(
+        short = 'p',
+        long = "profile",
+        help = "Configuration profile name (from ~/.flowseer)",
+        long_help = "Name of the configuration profile to load from ~/.flowseer/<profile>.json. \
+                     Values from the CLI override values from the profile."
+    )]
+    pub profile: Option<String>,
+
+    #[arg(
         short = 'r',
         long = "gh-repo",
         help = "Repository name (e.g., 'my-project')",
-        long_help = "Name of the Github repository to search in. This should be just the repository name without the owner/organization prefix."
+        long_help = "Name of the Github repository to search in. Can be provided via CLI or configuration profile."
     )]
-    pub repo: String,
+    pub repo: Option<String>,
 
     #[arg(
         short = 'w',
         long = "gh-workflow",
         help = "Workflow ID or filename (e.g., 'ci.yml', '123456')",
-        long_help = "Github workflow identifier. Can be either the workflow filename (e.g., 'ci.yml', 'deploy.yaml') or the numeric workflow ID. Use 'gh workflow list' to see available workflows."
+        long_help = "Github workflow identifier. Can be either the workflow filename (e.g., 'ci.yml', 'deploy.yaml') or the numeric workflow ID. Use 'gh workflow list' to see available workflows. Can be provided via CLI or configuration profile."
     )]
-    pub workflow: String,
+    pub workflow: Option<String>,
 
     #[arg(
         short = 'u',
         long = "gh-owner",
         help = "Organization/user name (Github owner)",
-        long_help = "Github organization or username that owns the repository. This is the first part of the full repository path (owner/repo)."
+        long_help = "Github organization or username that owns the repository. This is the first part of the full repository path (owner/repo). Can be provided via CLI or configuration profile."
     )]
-    pub owner: String,
+    pub owner: Option<String>,
 
     #[arg(
         short = 't',
         long = "gh-token",
         env = "GITHUB_TOKEN",
-        help = "Github token (CLI arg or GITHUB_TOKEN env var)",
-        long_help = "Github personal access token for API authentication. Can be provided via --token flag or GITHUB_TOKEN environment variable. The CLI argument takes precedence over the environment variable. Token needs 'repo' and 'actions:read' permissions."
+        help = "Github token (CLI arg or GITHUB_TOKEN env var, or profile)",
+        long_help = "Github personal access token for API authentication. Can be provided via --gh-token, GITHUB_TOKEN environment variable, or configuration profile. Token needs 'repo' and 'actions:read' permissions."
     )]
-    pub token: String,
+    pub token: Option<String>,
 
     #[arg(
         value_enum,
@@ -104,10 +113,10 @@ mod tests {
         ])
         .unwrap();
 
-        assert_eq!(args.repo, "my-repo");
-        assert_eq!(args.workflow, "ci.yml");
-        assert_eq!(args.owner, "myorg");
-        assert_eq!(args.token, "ghp_test123");
+        assert_eq!(args.repo.as_deref(), Some("my-repo"));
+        assert_eq!(args.workflow.as_deref(), Some("ci.yml"));
+        assert_eq!(args.owner.as_deref(), Some("myorg"));
+        assert_eq!(args.token.as_deref(), Some("ghp_test123"));
         assert_eq!(args.output, OutputFormat::Table);
         assert_eq!(args.concurrency, 10);
         assert_eq!(args.timeout, 30);
@@ -140,10 +149,10 @@ mod tests {
         ])
         .unwrap();
 
-        assert_eq!(args.repo, "my-repo");
-        assert_eq!(args.workflow, "deploy.yml");
-        assert_eq!(args.owner, "myorg");
-        assert_eq!(args.token, "ghp_test123");
+        assert_eq!(args.repo.as_deref(), Some("my-repo"));
+        assert_eq!(args.workflow.as_deref(), Some("deploy.yml"));
+        assert_eq!(args.owner.as_deref(), Some("myorg"));
+        assert_eq!(args.token.as_deref(), Some("ghp_test123"));
         assert_eq!(args.output, OutputFormat::Json);
         assert_eq!(args.contains, vec!["fix", "bug"]);
         assert_eq!(args.concurrency, 5);
@@ -166,10 +175,10 @@ mod tests {
         ])
         .unwrap();
 
-        assert_eq!(args.repo, "my-repo");
-        assert_eq!(args.workflow, "ci.yml");
-        assert_eq!(args.owner, "myorg");
-        assert_eq!(args.token, "ghp_test123");
+        assert_eq!(args.repo.as_deref(), Some("my-repo"));
+        assert_eq!(args.workflow.as_deref(), Some("ci.yml"));
+        assert_eq!(args.owner.as_deref(), Some("myorg"));
+        assert_eq!(args.token.as_deref(), Some("ghp_test123"));
     }
 
     #[test]
