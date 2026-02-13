@@ -1,10 +1,44 @@
+//! # Flowseer `wfgrep` CLI Arguments
+//!
+//! This module defines the command-line interface (CLI) arguments for `flowseer wfgrep`.
+//!
+//! The `wfgrep` command allows querying and filtering GitHub workflow runs for a repository.
+//! It supports fetching data via the GitHub API with optional limits, filtering, and sorting.
+//!
+//! CLI arguments can be provided directly, or values can be loaded from a configuration
+//! profile located at `~/.flowseer/<profile>.json`. Values provided via CLI always override
+//! profile values when specified.
+
 use crate::commands::OutputFormat;
+use crate::commands::SortOrder;
+use crate::commands::types::Sort;
 use clap::Parser;
 use clap::value_parser;
 
+// TODO: Wiremock Sort Desc und ASC
+
+/// CLI arguments for the `flowseer wfgrep` command.
+///
+/// This struct represents all user-configurable options for fetching and processing
+/// GitHub workflow runs, including repository selection, workflow identifiers, API
+/// authentication, limits, filters, output formatting, concurrency, and retry behavior.
+///
+/// Values can be specified directly on the CLI, or loaded from a configuration profile
+/// (`~/.flowseer/<profile>.json`). CLI arguments always override profile values when set.
+///
+/// Example usage:
+///
+/// ```text
+/// wfgrep --gh-owner myorg --gh-repo myrepo --gh-workflow ci.yml --gh-token ghp_xxx
+/// ```
+///
+/// For detailed argument descriptions, see each field's `help` and `long_help`.
 #[derive(Parser, Debug)]
 #[command(version, about = "Workflow Grep for Github workflow runs")]
 pub struct WfGrepArgs {
+    /// Configuration profile name
+    ///
+    /// Load default values from `~/.flowseer/<profile>.json`. CLI arguments override profile values.
     #[arg(
         short = 'p',
         long = "profile",
@@ -14,78 +48,160 @@ pub struct WfGrepArgs {
     )]
     pub profile: Option<String>,
 
+    /// Repository name
+    ///
+    /// The GitHub repository to search for workflow runs.
     #[arg(
         short = 'r',
         long = "gh-repo",
         help = "Repository name (e.g., 'my-project')",
-        long_help = "Name of the Github repository to search in. Can be provided via CLI or configuration profile."
+        long_help = "Name of the GitHub repository to search in. CLI overrides profile values."
     )]
     pub repo: Option<String>,
 
+    /// Workflow ID or filename
+    ///
+    /// Can be a numeric workflow ID or workflow YAML filename.
     #[arg(
         short = 'w',
         long = "gh-workflow",
         help = "Workflow ID or filename (e.g., 'ci.yml', '123456')",
-        long_help = "Github workflow identifier. Can be either the workflow filename (e.g., 'ci.yml', 'deploy.yaml') or the numeric workflow ID. Use 'gh workflow list' to see available workflows. Can be provided via CLI or configuration profile."
+        long_help = "GitHub workflow identifier. Either workflow filename (e.g., 'ci.yml', 'deploy.yaml') or numeric workflow ID. Use 'gh workflow list' to see available workflows. CLI overrides profile values."
     )]
     pub workflow: Option<String>,
 
+    /// GitHub organization or username
+    ///
+    /// The owner of the repository.
     #[arg(
         short = 'u',
         long = "gh-owner",
-        help = "Organization/user name (Github owner)",
-        long_help = "Github organization or username that owns the repository. This is the first part of the full repository path (owner/repo). Can be provided via CLI or configuration profile."
+        help = "Organization/user name (GitHub owner)",
+        long_help = "GitHub organization or username that owns the repository. This is the first part of the full repository path (owner/repo). CLI overrides profile values."
     )]
     pub owner: Option<String>,
 
+    /// Maximum number of workflow runs fetched from API
+    ///
+    /// Limits API requests and reduces network traffic.
+    #[arg(
+        short = 'l',
+        long = "limit",
+        value_parser = value_parser!(u16).range(1..=65_535),
+        help = "Maximum number of workflow runs to fetch from GitHub",
+        long_help = "Limits the number of workflow runs fetched from the GitHub API. Only as many pages as needed are fetched (max 100 per page). Does not affect final output display. \nCLI arguments override profile values if set. Leaving the CLI value empty does not remove the profile value; it must be removed from the profile to have no value."
+    )]
+    pub limit: Option<u16>,
+
+    /// Maximum number of workflow runs displayed after processing
+    ///
+    /// Works after filtering, sorting, and aggregation.
+    #[arg(
+        short = 'H',
+        long = "head",
+        help = "Limits the number of workflow runs displayed after processing",
+        long_help = "Limits the number of workflow runs displayed after all processing steps (filtering, sorting, aggregation) have been applied. Acts like Unix 'head'. Unlike --limit, this only affects final output and does not reduce API requests. \nCLI arguments override profile values if set. Leaving the CLI value empty does not remove the profile value; it must be removed from the profile to have no value."
+    )]
+    pub head: Option<u16>,
+
+    /// GitHub token
+    ///
+    /// Personal access token for API authentication.
     #[arg(
         short = 't',
         long = "gh-token",
         env = "GITHUB_TOKEN",
-        help = "Github token (CLI arg or GITHUB_TOKEN env var, or profile)",
-        long_help = "Github personal access token for API authentication. Can be provided via --gh-token, GITHUB_TOKEN environment variable, or configuration profile. Token needs 'repo' and 'actions:read' permissions."
+        help = "GitHub token (CLI arg or GITHUB_TOKEN env var, or profile)",
+        long_help = "GitHub personal access token for API authentication. Can be provided via --gh-token, GITHUB_TOKEN environment variable, or configuration profile. Token needs 'repo' and 'actions:read' permissions. CLI overrides profile values."
     )]
     pub token: Option<String>,
 
+    /// Output format
+    ///
+    /// Table or JSON.
     #[arg(
         value_enum,
         short,
         long,
         default_value_t = OutputFormat::Table,
-        help = "Output format: table or json",
-        long_help = "Format for displaying results. 'table' provides a human-readable tabular output, while 'json' outputs structured data suitable for further processing or scripting."    
+        help = "Output format",
+        long_help = "Format for displaying results. 'table' provides a human-readable tabular output, 'json' provides structured data. CLI overrides profile values."
     )]
     pub output: OutputFormat,
 
+    /// Filter workflow runs by name containing terms
+    ///
+    /// Multiple terms are ANDed together.
     #[arg(
         short,
         long,
         help = "Filter by name containing terms",
-        long_help = "Filter workflow runs by names containing these terms. Multiple terms can be provided and all must match (AND logic). Case-insensitive matching is used."
+        long_help = "Filter workflow runs by names containing these terms. Multiple terms are combined with AND logic. Case-insensitive. CLI overrides profile values."
     )]
     pub contains: Vec<String>,
 
+    /// Sort workflow runs by field
+    ///
+    /// Determines which workflow run field is used for sorting the final result set.
+    /// Sorting is applied after filtering and before `--head`.
+    #[arg(
+        long,
+        value_enum,
+        default_value_t = Sort::CreatedAt,
+        help = "Field to sort workflow runs by",
+        long_help = "Defines the field used to sort workflow runs in the final result set. \
+                     Sorting is applied after filtering and before applying --head. \
+                     Currently, only 'created-at' is supported. \
+                     CLI arguments override profile values if set."
+    )]
+    pub sort: Sort,
+
+    /// Sort order
+    ///
+    /// Controls whether the selected sort field is applied in ascending or descending order.
+    #[arg(
+        long = "sort-order",
+        value_enum,
+        default_value_t = SortOrder::Desc,
+        help = "Sort order (ascending or descending)",
+        long_help = "Defines the order in which the selected sort field is applied. \
+                     'desc' sorts from newest to oldest, 'asc' from oldest to newest. \
+                     The sort order always applies to the field specified by --sort. \
+                     Defaults to descending. \
+                     CLI arguments override profile values if set."
+    )]
+    pub sort_order: SortOrder,
+
+    /// Number of concurrent API requests
+    ///
+    /// Increasing concurrency may speed up fetching but risks rate limits.
     #[arg(
         long,
         default_value = "10",
         value_parser = value_parser!(u8).range(1..=50),
         help = "Number of concurrent API requests",
-        long_help = "Number of concurrent requests to make to the Github API. Higher values speed up data retrieval but may hit rate limits. Adjust based on your API quota and network capacity."
+        long_help = "Number of concurrent requests to make to the GitHub API. Higher values speed up data retrieval but may hit rate limits. \nCLI arguments override profile values if set. Leaving the CLI value empty does not remove the profile value; it must be removed from the profile to have no value."
     )]
     pub concurrency: u8,
 
+    /// API request timeout in seconds
+    ///
+    /// Increase if requests fail due to network latency.    
     #[arg(
         long,
         default_value = "30",
         help = "Request timeout in seconds",
-        long_help = "Timeout for individual API requests in seconds. Increase if you experience timeout errors with slow connections or large responses."
+        long_help = "Timeout for individual API requests in seconds. Increase if experiencing timeout errors. \nCLI arguments override profile values if set. Leaving the CLI value empty does not remove the profile value; it must be removed from the profile to have no value."
     )]
     pub timeout: u64,
 
+    /// Retry failed API requests automatically
+    ///
+    /// Uses exponential backoff.
     #[arg(
         long,
         help = "Retry failed requests automatically",
-        long_help = "Automatically retry failed API requests. Useful for handling transient network errors or temporary Github API issues. Failed requests will be retried with exponential backoff."
+        long_help = "Automatically retry failed API requests. Useful for transient network errors or temporary GitHub API issues. \nCLI arguments override profile values if set. Leaving the CLI value empty does not remove the profile value; it must be removed from the profile to have no value."
     )]
     pub retry: bool,
 

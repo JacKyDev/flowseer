@@ -22,6 +22,10 @@ pub fn pick_default<T>(cli: T, profile: Option<T>) -> T {
     profile.unwrap_or(cli)
 }
 
+pub fn pick_optional<T>(cli: Option<T>, profile: Option<T>) -> Option<T> {
+    cli.or(profile)
+}
+
 pub fn pick_bool(cli: bool, profile: Option<bool>) -> bool {
     if cli { true } else { profile.unwrap_or(false) }
 }
@@ -133,5 +137,28 @@ mod pick_bool_tests {
     fn false_when_neither_cli_nor_profile_true() {
         let result = pick_bool(false, None);
         assert!(!result);
+    }
+}
+
+#[cfg(test)]
+mod pick_optional_tests {
+    use super::*;
+
+    #[test]
+    fn cli_wins_when_present() {
+        let result = pick_optional(Some(5), Some(10));
+        assert_eq!(result, Some(5));
+    }
+
+    #[test]
+    fn profile_used_when_cli_missing() {
+        let result = pick_optional::<i32>(None, Some(10));
+        assert_eq!(result, Some(10));
+    }
+
+    #[test]
+    fn none_when_both_missing() {
+        let result = pick_optional::<i32>(None, None);
+        assert_eq!(result, None);
     }
 }

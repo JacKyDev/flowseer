@@ -1,11 +1,14 @@
 use crate::commands::CLIOutputData;
 use crate::commands::CLIStatus;
 use crate::commands::OutputFormat;
+use crate::commands::SortOrder;
 use crate::commands::WorkflowMetaData;
 use crate::commands::WorkflowTableRowData;
+use crate::commands::types::Sort;
 use crate::commands::wfgrep::EffectiveConfig;
 use crate::commands::wfgrep::ErrorType;
 use crate::commands::wfgrep::PaginatedError;
+use crate::commands::wfgrep::types::Pagination;
 use crate::github::GithubWorkflowRunResponse;
 use crate::util::convert_struct_to_table;
 use crate::util::convert_struct_to_table_with_keys;
@@ -24,7 +27,7 @@ use tokio::sync::Semaphore;
 use colored::*;
 
 pub async fn handle_paginated_requests<T, E, F, Fut>(
-    total_pages: usize,
+    pagination: Pagination,
     concurrency: &u8,
     format: OutputFormat,
     request_fn: F,
@@ -32,15 +35,15 @@ pub async fn handle_paginated_requests<T, E, F, Fut>(
 where
     T: Send + 'static,
     E: std::fmt::Display + Send + 'static,
-    F: Fn(usize) -> Fut + Send + Sync + 'static + Clone,
+    F: Fn(usize, usize) -> Fut + Send + Sync + 'static + Clone,
     Fut: std::future::Future<Output = Result<T, E>> + Send,
 {
     let mut results = Vec::new();
     let mut errors = Vec::new();
 
     let show_progress = matches!(format, OutputFormat::Table);
-    let pb = if show_progress {
-        let pb = ProgressBar::new((total_pages - 1) as u64);
+    let pb = if show_progress && pagination.total_pages > 1 {
+        let pb = ProgressBar::new((pagination.total_pages - 1) as u64);
         pb.set_style(
             ProgressStyle::with_template(
                 "{spinner} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} Seiten",
@@ -56,14 +59,20 @@ where
     let semaphore = Arc::new(Semaphore::new(*concurrency as usize));
     let mut tasks = FuturesUnordered::new();
 
-    for page in 2..=total_pages {
+    for page in 2..=pagination.total_pages {
         let permit = semaphore.clone();
         let request_fn = request_fn.clone();
         let pb = pb.clone();
 
+        let per_page = if page == pagination.total_pages {
+            pagination.last_page_size
+        } else {
+            pagination.per_page
+        };
+
         tasks.push(tokio::spawn(async move {
             let _permit = permit.acquire().await.unwrap();
-            let res = request_fn(page).await;
+            let res = request_fn(page, per_page).await;
             if let Some(pb) = pb {
                 pb.inc(1);
             }
@@ -96,6 +105,32 @@ where
     }
 
     (results, errors)
+}
+
+pub fn calculate_pagination(total_count: usize, per_page: usize, limit: Option<u16>) -> Pagination {
+    let effective_limit = match limit {
+        Some(l) => std::cmp::min(l.into(), total_count),
+        None => total_count,
+    };
+
+    if effective_limit == 0 {
+        return Pagination {
+            total_pages: 0,
+            effective_limit: 0,
+            last_page_size: 0,
+            per_page,
+        };
+    }
+
+    let total_pages = effective_limit.div_ceil(per_page);
+    let last_page_size = effective_limit - (total_pages - 1) * per_page;
+
+    Pagination {
+        total_pages,
+        effective_limit,
+        last_page_size,
+        per_page,
+    }
 }
 
 pub fn output_data(
@@ -175,6 +210,19 @@ pub fn sort_runs(mut runs: Vec<GithubWorkflowRunResponse>) -> Vec<GithubWorkflow
     runs
 }
 
+pub fn apply_user_sort(runs: &mut [GithubWorkflowRunResponse], sort: Sort, sort_order: SortOrder) {
+    match sort {
+        Sort::CreatedAt => match sort_order {
+            SortOrder::Asc => {
+                runs.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+            }
+            SortOrder::Desc => {
+                runs.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+            }
+        },
+    }
+}
+
 #[cfg(not(debug_assertions))]
 pub fn print_dev_mode_warning() {
     eprintln!("{}", "WARNING: Development mode is ENABLED!".bold().red());
@@ -203,4 +251,131 @@ pub fn print_dev_mode_impacts() {
     println!(" - https://localhost:8443 used as API Request Url");
     println!(" - Default per-page elements: 2");
     println!();
+}
+
+#[cfg(test)]
+mod tests_calculate_pagination {
+    use super::*;
+
+    #[test]
+    fn limit_smaller_than_per_page() {
+        let p = calculate_pagination(50, 100, None);
+        assert_eq!(p.total_pages, 1);
+        assert_eq!(p.last_page_size, 50);
+    }
+
+    #[test]
+    fn limit_equal_per_page() {
+        let p = calculate_pagination(100, 100, None);
+        assert_eq!(p.total_pages, 1);
+        assert_eq!(p.last_page_size, 100);
+    }
+
+    #[test]
+    fn limit_just_over_per_page() {
+        let p = calculate_pagination(101, 100, None);
+        assert_eq!(p.total_pages, 2);
+        assert_eq!(p.last_page_size, 1);
+    }
+
+    #[test]
+    fn limit_multiple_pages_with_remainder() {
+        let p = calculate_pagination(250, 100, None);
+        assert_eq!(p.total_pages, 3);
+        assert_eq!(p.last_page_size, 50);
+    }
+
+    #[test]
+    fn limit_exact_multiple_of_per_page() {
+        let p = calculate_pagination(300, 100, None);
+        assert_eq!(p.total_pages, 3);
+        assert_eq!(p.last_page_size, 100);
+    }
+
+    #[test]
+    fn limit_set_lower_than_total_count() {
+        let p = calculate_pagination(250, 100, Some(150));
+        assert_eq!(p.total_pages, 2);
+        assert_eq!(p.last_page_size, 50);
+    }
+
+    #[test]
+    fn limit_zero() {
+        let p = calculate_pagination(0, 100, None);
+        assert_eq!(p.total_pages, 0);
+        assert_eq!(p.last_page_size, 0);
+    }
+}
+
+#[cfg(test)]
+mod tests_apply_user_sort {
+    use super::*;
+    use crate::commands::Sort;
+    use crate::commands::SortOrder;
+    use crate::github::GithubWorkflowRunResponse;
+
+    #[test]
+    fn sorts_created_at_ascending() {
+        let mut runs = vec![
+            GithubWorkflowRunResponse::test_with_created_at("2024-03-10T12:00:00Z"),
+            GithubWorkflowRunResponse::test_with_created_at("2024-01-01T08:00:00Z"),
+            GithubWorkflowRunResponse::test_with_created_at("2024-02-05T18:30:00Z"),
+        ];
+
+        apply_user_sort(&mut runs, Sort::CreatedAt, SortOrder::Asc);
+
+        let dates: Vec<&str> = runs.iter().map(|r| r.created_at.as_str()).collect();
+
+        assert_eq!(
+            dates,
+            vec![
+                "2024-01-01T08:00:00Z",
+                "2024-02-05T18:30:00Z",
+                "2024-03-10T12:00:00Z",
+            ]
+        );
+    }
+
+    #[test]
+    fn sorts_created_at_descending() {
+        let mut runs = vec![
+            GithubWorkflowRunResponse::test_with_created_at("2024-03-10T12:00:00Z"),
+            GithubWorkflowRunResponse::test_with_created_at("2024-01-01T08:00:00Z"),
+            GithubWorkflowRunResponse::test_with_created_at("2024-02-05T18:30:00Z"),
+        ];
+
+        apply_user_sort(&mut runs, Sort::CreatedAt, SortOrder::Desc);
+
+        let dates: Vec<&str> = runs.iter().map(|r| r.created_at.as_str()).collect();
+
+        assert_eq!(
+            dates,
+            vec![
+                "2024-03-10T12:00:00Z",
+                "2024-02-05T18:30:00Z",
+                "2024-01-01T08:00:00Z",
+            ]
+        );
+    }
+
+    #[test]
+    fn sorting_empty_slice_is_noop() {
+        let mut runs: Vec<GithubWorkflowRunResponse> = vec![];
+
+        apply_user_sort(&mut runs, Sort::CreatedAt, SortOrder::Asc);
+
+        assert!(runs.is_empty());
+    }
+
+    #[test]
+    fn sorting_single_element_is_noop() {
+        let mut runs = vec![GithubWorkflowRunResponse::test_with_created_at(
+            "2024-01-01T00:00:00Z",
+        )];
+
+        apply_user_sort(&mut runs, Sort::CreatedAt, SortOrder::Desc);
+
+        assert_eq!(runs.len(), 1);
+        assert_eq!(runs[0].created_at, "2024-01-01T00:00:00Z");
+    }
 }

@@ -33,24 +33,24 @@ pub struct WorkflowMetaData {
     pub contains: Vec<String>,
     pub token: String,
     pub output: OutputFormat,
+    pub limit: Option<u16>,
+    pub head: Option<u16>,
+    pub sort: Sort,
+    pub sort_order: SortOrder,
 }
 
 #[derive(Tabled)]
 pub struct WorkflowTableRowData {
+    #[tabled(rename = "Name")]
+    pub name: String,
     #[tabled(rename = "User")]
     pub user: String,
-    #[tabled(rename = "Status")]
-    pub status: String,
     #[tabled(rename = "Conclusion")]
     pub conclusion: String,
     #[tabled(rename = "Duration")]
     pub duration: String,
-    #[tabled(rename = "Name")]
-    pub name: String,
     #[tabled(rename = "Id")]
     pub id: u64,
-    #[tabled(rename = "Trigger")]
-    pub trigger: String,
     #[tabled(rename = "Start Date")]
     pub start_date: String,
 }
@@ -60,4 +60,17 @@ pub struct WorkflowTableRowData {
 pub enum OutputFormat {
     Table,
     Json,
+}
+
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Sort {
+    CreatedAt,
+}
+
+#[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SortOrder {
+    Asc,
+    Desc,
 }

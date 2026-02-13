@@ -1,0 +1,22 @@
+{
+  "total_count": 4,
+  "workflow_runs": [
+    {
+      "id": 16527601101,
+      "name": "Dummy Action 1",
+      "head_branch": "feature/wfgrep",
+      "path": ".github/workflows/dummy.yml",
+      "event": "workflow_dispatch",
+      "status": "completed",
+      "conclusion": "success",
+      "workflow_id": 41179561,
+      "html_url": "https://github.com/JacKyDev/flowseer/actions/runs/16527601101",
+      "created_at": "2025-07-25T17:10:20Z",
+      "updated_at": "2025-07-25T17:12:41Z",
+      "actor": {
+        "login": "MMustermann"
+      },
+      "run_started_at": "2025-07-25T17:10:20Z"
+    }
+  ]
+}

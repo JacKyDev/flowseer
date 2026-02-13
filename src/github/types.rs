@@ -60,3 +60,26 @@ impl GithubClientError {
         }
     }
 }
+
+#[cfg(test)]
+impl GithubWorkflowRunResponse {
+    pub(crate) fn test_with_created_at(created_at: &str) -> Self {
+        Self {
+            id: 1,
+            name: None,
+            status: None,
+            conclusion: None,
+            event: None,
+            actor: None,
+            head_branch: None,
+
+            created_at: created_at.to_string(),
+            updated_at: created_at.to_string(),
+            run_started_at: None,
+
+            path: None,
+            workflow_id: None,
+            html_url: String::new(),
+        }
+    }
+}

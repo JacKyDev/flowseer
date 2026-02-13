@@ -4,7 +4,7 @@ pub use convert::{
 pub use file::read_file_to_string;
 pub use helpers::{format_duration_from_str, mask_token, resolve_home_dir, wrap_at_spaces};
 pub use json::serialize_to_json;
-pub use pick::{pick_bool, pick_default, pick_required};
+pub use pick::{pick_bool, pick_default, pick_optional, pick_required};
 pub use print::{print_json, print_lines, print_raw, print_table};
 pub use types::{JsonFormat, KeyValue};
 

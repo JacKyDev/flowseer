@@ -1,6 +1,8 @@
 use crate::AppMetadata;
 use crate::commands::Command;
 use crate::commands::wfgrep::WfGrepCommand;
+use crate::commands::wfgrep::apply_user_sort;
+use crate::commands::wfgrep::calculate_pagination;
 use crate::commands::wfgrep::filter_runs;
 use crate::commands::wfgrep::handle_paginated_requests;
 use crate::commands::wfgrep::output_data;
@@ -24,6 +26,10 @@ impl Command for WfGrepCommand {
             ref token,
             ref owner,
             ref repo,
+            limit,
+            head,
+            sort,
+            sort_order,
             timeout,
             retry,
             ref workflow,
@@ -45,10 +51,21 @@ impl Command for WfGrepCommand {
 
         let mut errors = Vec::new();
 
-        let per_page = if dev_mode {
-            2
-        } else {
-            Some(100).map_or(100, |v| std::cmp::min(v, 100))
+        let per_page = match limit {
+            Some(l) => {
+                if l > 100 {
+                    100
+                } else {
+                    l
+                }
+            }
+            None => {
+                if dev_mode {
+                    2
+                } else {
+                    100
+                }
+            }
         };
 
         let mut client_builder = GithubWorkflowClientBuilder::new();
@@ -111,21 +128,37 @@ impl Command for WfGrepCommand {
             return Ok(());
         }
 
-        let total_pages = total_count.div_ceil(per_page.into());
+        let pagination = calculate_pagination(total_count, per_page.into(), limit);
 
-        let (more_runs, errors) =
-            handle_paginated_requests(total_pages, concurrency, self.args.output, move |page| {
+        let (more_runs, errors) = handle_paginated_requests(
+            pagination,
+            concurrency,
+            self.args.output,
+            move |page, per_page_for_page| {
                 let mut client = client.clone();
                 client.page = page;
+                client.per_page = per_page_for_page.min(u16::MAX as usize) as u16;
                 async move { client.get::<GithubWorkflowRunsResponse>().await }
-            })
-            .await;
+            },
+        )
+        .await;
 
         all_runs.extend(more_runs.into_iter().flat_map(|r| r.workflow_runs));
 
+        if let Some(limit) = limit {
+            all_runs.truncate(limit.into());
+        }
+
         let filtered_runs = filter_runs(&all_runs, &self.args.contains);
 
-        let final_runs = sort_runs(filtered_runs);
+        let mut sorted_runs = sort_runs(filtered_runs);
+
+        apply_user_sort(&mut sorted_runs, sort, sort_order);
+
+        let final_runs = match head {
+            Some(n) => sorted_runs.into_iter().take(n as usize).collect(),
+            None => sorted_runs,
+        };
 
         output_data(&self.args, final_runs, errors).unwrap();
         Ok(())

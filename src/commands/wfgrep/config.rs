@@ -9,6 +9,7 @@ use crate::util::mask_token;
 use crate::util::pick::pick_vec;
 use crate::util::pick_bool;
 use crate::util::pick_default;
+use crate::util::pick_optional;
 use crate::util::pick_required;
 use crate::util::wrap_at_spaces;
 
@@ -26,7 +27,14 @@ impl EffectiveConfig {
 
         let contains = pick_vec(args.contains, profile.contains);
 
+        let limit = pick_optional(args.limit, profile.limit);
+        let head = pick_optional(args.head, profile.head);
+
         let output = args.output;
+
+        let sort = pick_default(args.sort, profile.sort);
+        let sort_order = pick_default(args.sort_order, profile.sort_order);
+
         let concurrency = pick_default(args.concurrency, profile.concurrency);
         let timeout = pick_default(args.timeout, profile.timeout);
         let retry = pick_bool(args.retry, profile.retry);
@@ -40,10 +48,14 @@ impl EffectiveConfig {
             token,
             output,
             contains,
+            limit,
+            head,
             concurrency,
             timeout,
             retry,
             dev_mode,
+            sort,
+            sort_order,
         })
     }
 }
@@ -56,7 +68,6 @@ impl From<&GithubWorkflowRunResponse> for WorkflowTableRowData {
                 .as_ref()
                 .map_or("(no user)", |a| &a.login)
                 .to_string(),
-            status: run.status.as_deref().unwrap_or("(no status)").to_string(),
             conclusion: run
                 .conclusion
                 .as_deref()
@@ -68,7 +79,6 @@ impl From<&GithubWorkflowRunResponse> for WorkflowTableRowData {
             ),
             name: wrap_at_spaces(run.name.as_deref().unwrap_or("unknown"), 30),
             id: run.id,
-            trigger: run.event.as_deref().unwrap_or("unknown").to_string(),
             start_date: run
                 .run_started_at
                 .as_deref()
@@ -86,6 +96,10 @@ impl From<&EffectiveConfig> for WorkflowMetaData {
             owner: args.owner.clone(),
             repo: args.repo.clone(),
             workflow: args.workflow.clone(),
+            limit: args.limit,
+            head: args.head,
+            sort: args.sort,
+            sort_order: args.sort_order,
             token: mask_token(&args.token, Some("ghp_")),
         }
     }
@@ -95,6 +109,8 @@ impl From<&EffectiveConfig> for WorkflowMetaData {
 mod tests {
     use super::*;
     use crate::commands::OutputFormat;
+    use crate::commands::Sort;
+    use crate::commands::SortOrder;
     use crate::commands::wfgrep::types::EffectiveConfig;
     use crate::profile::Profile;
 
@@ -104,6 +120,8 @@ mod tests {
             owner: None,
             workflow: None,
             token: None,
+            limit: None,
+            head: None,
             output: OutputFormat::Table,
             contains: vec![].into(),
             concurrency: 10,
@@ -111,6 +129,8 @@ mod tests {
             retry: false,
             dev_mode: false,
             profile: None,
+            sort: Sort::CreatedAt,
+            sort_order: SortOrder::Asc,
         }
     }
 
@@ -120,11 +140,15 @@ mod tests {
             owner: Some("profile-owner".into()),
             workflow: Some("profile-workflow".into()),
             token: Some("profile-token".into()),
+            limit: None,
+            head: None,
             output: None,
             contains: vec![].into(),
             concurrency: None,
             timeout: None,
             retry: None,
+            sort: None,
+            sort_order: None,
         }
     }
 
@@ -177,10 +201,14 @@ mod tests {
             workflow: Some("profile-workflow".into()),
             token: None,
             output: None,
+            limit: None,
+            head: None,
             contains: vec![].into(),
             concurrency: None,
             timeout: None,
             retry: None,
+            sort: None,
+            sort_order: None,
         };
 
         let cfg = EffectiveConfig::from_args_and_profile(args, Some(profile)).unwrap();
@@ -200,10 +228,14 @@ mod tests {
             workflow: None,
             token: None,
             output: None,
+            limit: None,
+            head: None,
             contains: vec![].into(),
             concurrency: None,
             timeout: None,
             retry: None,
+            sort: None,
+            sort_order: None,
         };
 
         let err = EffectiveConfig::from_args_and_profile(args, Some(profile));

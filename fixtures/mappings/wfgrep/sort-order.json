@@ -1,0 +1,20 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/repos/JacKyDev/flowseer/actions/workflows/sort-order-test.yml/runs",
+    "queryParameters": {
+      "page": { "equalTo": "1" },
+      "per_page": { "equalTo": "2" }
+    },
+    "headers": {
+      "Authorization": { "equalTo": "Bearer ghp_0123456789" }
+    }
+  },
+  "response": {
+    "status": 200,
+    "bodyFileName": "sort-order.json",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}
