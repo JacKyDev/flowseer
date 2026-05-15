@@ -9,13 +9,12 @@
 //! profile located at `~/.flowseer/<profile>.json`. Values provided via CLI always override
 //! profile values when specified.
 
-use crate::commands::OutputFormat;
-use crate::commands::SortOrder;
-use crate::commands::types::Sort;
-use clap::Parser;
-use clap::value_parser;
-
-// TODO: Wiremock Sort Desc und ASC
+use crate::{
+    commands::{OutputFormat, SortOrder, types::Sort},
+    util::parse_since,
+};
+use chrono::{DateTime, Utc};
+use clap::{Parser, value_parser};
 
 /// CLI arguments for the `flowseer wfgrep` command.
 ///
@@ -139,6 +138,43 @@ pub struct WfGrepArgs {
         long_help = "Filter workflow runs by names containing these terms. Multiple terms are combined with AND logic. Case-insensitive. CLI overrides profile values."
     )]
     pub contains: Vec<String>,
+
+    /// Only include workflow runs created after the specified time.
+    ///
+    /// Supported input formats:
+    ///
+    /// - **RFC3339 / ISO-8601 timestamp**
+    ///   - `2026-02-06T12:00:00Z`
+    ///   - `2026-02-06T12:00:00+01:00`
+    ///
+    /// - **Date only**
+    ///   - `2026-02-06` (interpreted as `2026-02-06T00:00:00Z`)
+    ///
+    /// - **Relative time**
+    ///   - `7d`  → 7 days ago
+    ///   - `24h` → 24 hours ago
+    ///   - `30m` → 30 minutes ago
+    ///
+    /// - **Keywords**
+    ///   - `yesterday`
+    ///   - `today`
+    ///   - `now`
+    ///
+    /// # Examples
+    ///
+    /// ```bash
+    /// flowseer wfgrep --since 2026-02-06
+    /// flowseer wfgrep --since 2026-02-06T12:00:00Z
+    /// flowseer wfgrep --since 7d
+    /// flowseer wfgrep --since yesterday
+    /// ```
+    #[arg(
+        long,
+        value_parser = parse_since,
+        help = "Only include workflow runs created after this date (ISO-8601)",
+        long_help = "Accepts YYYY-MM-DD, RFC3339 timestamps, or relative times like 7d, 24h, yesterday."
+    )]
+    pub since: Option<DateTime<Utc>>,
 
     /// Sort workflow runs by field
     ///

@@ -37,6 +37,7 @@ pub struct WorkflowMetaData {
     pub head: Option<u16>,
     pub sort: Sort,
     pub sort_order: SortOrder,
+    pub since: Option<String>,
 }
 
 #[derive(Tabled)]
@@ -63,7 +64,7 @@ pub enum OutputFormat {
 }
 
 #[derive(ValueEnum, Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum Sort {
     CreatedAt,
 }

@@ -34,6 +34,7 @@ impl Command for WfGrepCommand {
             retry,
             ref workflow,
             ref concurrency,
+            ref since,
             dev_mode,
             ..
         } = self.args;
@@ -83,6 +84,7 @@ impl Command for WfGrepCommand {
             .retry(retry)
             .user_agent(AppMetadata::user_agent(&self.meta))
             .workflow_id(workflow)
+            .since(since.clone())
             .per_page(per_page)
             .build()
         {

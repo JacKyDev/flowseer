@@ -10,6 +10,7 @@ pub struct GithubWorkflowClientBuilder {
     workflow_id: Option<String>,
     per_page: Option<u16>,
     page: Option<usize>,
+    since: Option<String>,
 }
 
 impl Default for GithubWorkflowClientBuilder {
@@ -21,6 +22,7 @@ impl Default for GithubWorkflowClientBuilder {
             workflow_id: None,
             per_page: Some(100),
             page: Some(1),
+            since: None,
         }
     }
 }
@@ -65,6 +67,11 @@ impl GithubWorkflowClientBuilder {
         self
     }
 
+    pub fn since(mut self, since: Option<impl Into<String>>) -> Self {
+        self.since = since.map(|s| s.into());
+        self
+    }
+
     pub fn repo(mut self, repo: impl Into<String>) -> Self {
         self.repo = Some(repo.into());
         self
@@ -102,6 +109,7 @@ impl GithubWorkflowClientBuilder {
             workflow_id,
             per_page: self.per_page.unwrap_or(100),
             page: self.page.unwrap_or(1),
+            since: self.since,
         })
     }
 }

@@ -48,6 +48,8 @@ pub struct EffectiveConfig {
     pub retry: bool,
     pub dev_mode: bool,
 
+    pub since: Option<String>,
+
     pub sort_order: SortOrder,
     pub sort: Sort,
 }

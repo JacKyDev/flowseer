@@ -1,6 +1,8 @@
 use crate::commands::OutputFormat;
 use crate::commands::SortOrder;
 use crate::commands::types::Sort;
+use chrono::DateTime;
+use chrono::Utc;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Default)]
@@ -20,6 +22,8 @@ pub struct Profile {
     pub concurrency: Option<u8>,
     pub timeout: Option<u64>,
     pub retry: Option<bool>,
+
+    pub since: Option<DateTime<Utc>>,
 
     pub sort: Option<Sort>,
     pub sort_order: Option<SortOrder>,

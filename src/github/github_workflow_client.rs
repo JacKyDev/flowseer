@@ -8,14 +8,21 @@ pub struct GithubWorkflowClient {
     pub workflow_id: String,
     pub per_page: u16,
     pub page: usize,
+    pub since: Option<String>,
 }
 
 impl GithubWorkflowClient {
     pub fn build_endpoint_url(&self) -> Result<String, GithubClientError> {
-        self.client.build_url(format!(
+        let mut url = format!(
             "/repos/{}/{}/actions/workflows/{}/runs?per_page={}&page={}",
             self.owner, self.repo, self.workflow_id, self.per_page, self.page
-        ))
+        );
+
+        if let Some(since) = &self.since {
+            url.push_str(&format!("&created={}", since));
+        }
+
+        self.client.build_url(url)
     }
 
     pub async fn get<T>(&self) -> Result<T, GithubClientError>
@@ -149,5 +156,55 @@ mod tests {
         assert!(client.is_ok());
         let client = client.unwrap();
         assert_eq!(client.per_page, 25);
+    }
+
+    #[test]
+    fn test_workflow_url_generation_with_since() {
+        let client = GithubWorkflowClientBuilder::new()
+            .token("token123")
+            .owner("dummy")
+            .repo("hello-world")
+            .workflow_id("main.yml")
+            .since(Some(">=2026-02-06T00:00:00Z".to_string()))
+            .per_page(100)
+            .build()
+            .unwrap();
+
+        let expected_url = "https://api.github.com/repos/dummy/hello-world/actions/workflows/main.yml/runs?per_page=100&page=1&created=>=2026-02-06T00:00:00Z";
+
+        assert_eq!(client.build_endpoint_url().unwrap(), expected_url);
+    }
+
+    #[test]
+    fn test_builder_sets_since() {
+        let client = GithubWorkflowClientBuilder::new()
+            .token("token123")
+            .owner("dummy")
+            .repo("hello-world")
+            .workflow_id("main.yml")
+            .since(Some(">=2026-02-06T00:00:00Z".to_string()))
+            .build()
+            .unwrap();
+
+        assert_eq!(client.since, Some(">=2026-02-06T00:00:00Z".to_string()));
+    }
+
+    #[test]
+    fn test_workflow_url_generation_with_since_and_page_change() {
+        let mut client = GithubWorkflowClientBuilder::new()
+            .token("token123")
+            .owner("dummy")
+            .repo("hello-world")
+            .workflow_id("main.yml")
+            .since(Some(">=2026-02-06T00:00:00Z".to_string()))
+            .per_page(100)
+            .build()
+            .unwrap();
+
+        client.page = 3;
+
+        let expected_url = "https://api.github.com/repos/dummy/hello-world/actions/workflows/main.yml/runs?per_page=100&page=3&created=>=2026-02-06T00:00:00Z";
+
+        assert_eq!(client.build_endpoint_url().unwrap(), expected_url);
     }
 }

@@ -32,6 +32,9 @@ impl EffectiveConfig {
 
         let output = args.output;
 
+        let since = pick_optional(args.since, profile.since);
+        let since_filter: Option<String> = since.map(|dt| format!(">={}", dt.to_rfc3339()));
+
         let sort = pick_default(args.sort, profile.sort);
         let sort_order = pick_default(args.sort_order, profile.sort_order);
 
@@ -54,6 +57,7 @@ impl EffectiveConfig {
             timeout,
             retry,
             dev_mode,
+            since: since_filter,
             sort,
             sort_order,
         })
@@ -100,6 +104,7 @@ impl From<&EffectiveConfig> for WorkflowMetaData {
             head: args.head,
             sort: args.sort,
             sort_order: args.sort_order,
+            since: args.since.clone(),
             token: mask_token(&args.token, Some("ghp_")),
         }
     }
@@ -131,6 +136,7 @@ mod tests {
             profile: None,
             sort: Sort::CreatedAt,
             sort_order: SortOrder::Asc,
+            since: None,
         }
     }
 
@@ -149,6 +155,7 @@ mod tests {
             retry: None,
             sort: None,
             sort_order: None,
+            since: None,
         }
     }
 
@@ -209,6 +216,7 @@ mod tests {
             retry: None,
             sort: None,
             sort_order: None,
+            since: None,
         };
 
         let cfg = EffectiveConfig::from_args_and_profile(args, Some(profile)).unwrap();
@@ -236,6 +244,7 @@ mod tests {
             retry: None,
             sort: None,
             sort_order: None,
+            since: None,
         };
 
         let err = EffectiveConfig::from_args_and_profile(args, Some(profile));
