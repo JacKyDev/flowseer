@@ -1,0 +1,24 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/repos/JacKyDev/flowseer/actions/workflows/double-rate-limit.yml/runs",
+    "queryParameters": {
+      "page": {
+        "matches": "1"
+      },
+      "per_page": {
+        "matches": "2"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "x-ratelimit-remaining": "1",
+      "x-ratelimit-reset": "1722639052",
+      "x-ratelimit-limit": "5000"
+    },
+    "bodyFileName": "workflows_2-results_page-1.json"
+  },
+  "priority": 2
+}

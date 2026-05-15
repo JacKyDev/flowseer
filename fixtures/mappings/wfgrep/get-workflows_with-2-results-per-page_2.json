@@ -1,0 +1,26 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/repos/JacKyDev/flowseer/actions/workflows/dummy-multi-page.yml/runs",
+    "queryParameters": {
+      "page": {
+        "equalTo": "2"
+      },
+      "per_page": {
+        "matches": "^(100|[1-9][0-9]?)$"
+      }
+    },
+    "headers": {
+      "Authorization": {
+        "equalTo": "Bearer ghp_0123456789"
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "bodyFileName": "workflows_2-results_page-2.json",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

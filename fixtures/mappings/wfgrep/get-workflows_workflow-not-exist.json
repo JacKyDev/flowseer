@@ -1,0 +1,26 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/repos/JacKyDev/flowseer/actions/workflows/not-exist.yml/runs",
+    "queryParameters": {
+      "page": {
+        "matches": "^(10|[1-9])$"
+      },
+      "per_page": {
+        "matches": "^(100|[1-99])$"
+      }
+    },
+    "headers": {
+      "Authorization": {
+        "equalTo": "Bearer ghp_0123456789"
+      }
+    }
+  },
+  "response": {
+    "status": 404,
+    "bodyFileName": "no-workflow-found.json",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "request": {
+    "method": "GET",
+    "urlPath": "/repos/JacKyDev/flowseer/actions/workflows/head-test.yml/runs",
+    "queryParameters": {
+      "page": { "equalTo": "1" },
+      "per_page": { "equalTo": "2" }
+    },
+    "headers": {
+      "Authorization": { "equalTo": "Bearer ghp_0123456789" }
+    }
+  },
+  "response": {
+    "status": 200,
+    "bodyFileName": "head-1-page-1.json",
+    "headers": {
+      "Content-Type": "application/json"
+    }
+  }
+}
